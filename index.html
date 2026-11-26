@@ -559,8 +559,8 @@
       const r = item.restaurant || '?';
       const c = item.category   || '?';
       if (!byRestaurant[r]) byRestaurant[r] = { url: item.url, categories: {} };
-      if (!byRestaurant[r].categories[c]) byRestaurant[r].categories[c] = [];
-      byRestaurant[r].categories[c].push(item);
+      if (!byRestaurant[r].categories[c]) byRestaurant[r].categories[c] = { en: item.category_en || '', items: [] };
+      byRestaurant[r].categories[c].items.push(item);
     });
 
     app.innerHTML = Object.entries(byRestaurant).map(([restaurant, { url, categories }]) => `
@@ -569,8 +569,8 @@
           <h2>${esc(restaurant)}</h2>
           ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener" data-i18n="website">${esc(ui.website)}</a>` : ''}
         </div>
-        ${Object.entries(categories).map(([cat, catItems]) => `
-          <div class="category-label">${esc(cat)}</div>
+        ${Object.entries(categories).map(([cat, { en, items: catItems }]) => `
+          <div class="category-label">${esc(lang === 'en' && en ? en : cat)}</div>
           <div class="menu-grid">${catItems.map(renderCard).join('')}</div>
         `).join('')}
       </section>
@@ -597,7 +597,9 @@
   }
 
   function esc(str) {
-    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    // Decode any HTML entities already in the data before re-escaping
+    const decoded = String(str).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+    return decoded.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
   document.getElementById('search').addEventListener('input', renderItems);
