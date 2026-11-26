@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Graphisoft Park — Napi menü</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #0070f3;
+      color: white;
+      padding: 1.25rem 2rem;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    header h1 { font-size: 1.25rem; font-weight: 600; }
+
+    .header-meta {
+      font-size: 0.8rem;
+      opacity: 0.75;
+    }
+
+    .restaurant-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .rest-pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      white-space: nowrap;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.35);
+      color: white;
+      cursor: pointer;
+      overflow: hidden;
+      transition: background 0.15s;
+    }
+    .rest-pill:hover { background: rgba(255,255,255,0.25); }
+    .rest-pill.active { background: white; color: #0070f3; border-color: white; }
+
+    .rest-pill .pill-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.6rem 0.3rem 0.75rem;
+    }
+
+    .rest-pill .pill-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.3rem 0.6rem;
+      text-decoration: none;
+      color: inherit;
+      border-left: 1px solid rgba(255,255,255,0.25);
+      opacity: 0.7;
+      font-size: 0.72rem;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .rest-pill .pill-link:hover { opacity: 1; background: rgba(255,255,255,0.15); }
+    .rest-pill.active .pill-link { border-left-color: rgba(0,112,243,0.2); color: #0070f3; }
+
+    .rest-pill .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .rest-pill.available .dot { background: #4ade80; }
+    .rest-pill.unavailable .dot { background: #f87171; }
+
+    /* toast shown when clicking an unavailable pill */
+    .unavail-toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a1a1a;
+      color: white;
+      padding: 0.6rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 100;
+    }
+    .unavail-toast.show { opacity: 1; }
+
+    .controls {
+      background: white;
+      border-bottom: 1px solid #e5e5e5;
+      padding: 0.875rem 2rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .filter-section {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #999;
+      white-space: nowrap;
+    }
+
+    .controls-divider {
+      width: 1px;
+      height: 1.5rem;
+      background: #e5e5e5;
+      flex-shrink: 0;
+    }
+
+    .controls input[type="search"] {
+      flex: 1;
+      min-width: 180px;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .controls input[type="search"]:focus { border-color: #0070f3; }
+
+    .filter-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .chip {
+      padding: 0.35rem 0.75rem;
+      border: 1px solid #d0d0d0;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      background: white;
+      transition: all 0.15s;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .chip:hover { border-color: #0070f3; color: #0070f3; }
+    .chip.active { background: #0070f3; border-color: #0070f3; color: white; }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem 3rem;
+    }
+
+    .restaurant-section { margin-bottom: 2.5rem; }
+
+    .restaurant-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #0070f3;
+    }
+
+    .restaurant-header h2 { font-size: 1.1rem; font-weight: 600; }
+    .restaurant-header a { font-size: 0.8rem; color: #0070f3; text-decoration: none; }
+    .restaurant-header a:hover { text-decoration: underline; }
+
+    .category-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #666;
+      margin: 1rem 0 0.5rem;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .menu-card {
+      background: white;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      padding: 0.875rem 1rem;
+      transition: box-shadow 0.15s;
+    }
+    .menu-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+    .menu-card .title-primary { font-weight: 500; font-size: 0.95rem; margin-bottom: 0.2rem; }
+    .menu-card .title-secondary { font-size: 0.8rem; color: #666; margin-bottom: 0.5rem; }
+
+    .lang-toggle { display: flex; border: 1px solid #d0d0d0; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+    .lang-toggle button { padding: 0.35rem 0.65rem; border: none; background: white; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: #666; transition: all 0.15s; }
+    .lang-toggle button.active { background: #0070f3; color: white; }
+
+    .tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
+
+    .tag {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-weight: 500;
+    }
+
+    .tag-allergen { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+    .tag-diet { background: #d1fae5; color: #065f46; border: 1px solid #34d399; }
+    .tag-price { background: #ede9fe; color: #5b21b6; border: 1px solid #a78bfa; }
+
+    .no-results {
+      text-align: center;
+      padding: 3rem;
+      color: #888;
+      font-size: 0.95rem;
+    }
+
+    #loading, #error {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #888;
+    }
+    #error { color: #dc2626; }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.75rem;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <h1>🍽 Graphisoft Park — <span id="i18n-title">Napi menü</span></h1>
+    <span class="header-meta" id="header-meta">Betöltés…</span>
+  </div>
+  <div class="restaurant-pills" id="restaurant-pills"></div>
+</header>
+
+<div class="controls">
+  <input type="search" id="search" placeholder="Fogás keresése…" autocomplete="off">
+  <div class="controls-divider"></div>
+  <div class="lang-toggle">
+    <button id="lang-hu" class="active" onclick="setLang('hu')">HU</button>
+    <button id="lang-en" onclick="setLang('en')">EN</button>
+  </div>
+  <div class="controls-divider"></div>
+  <div class="filter-section">
+    <span class="filter-label" id="i18n-diet">Diéta</span>
+    <div class="filter-group" id="diet-filters"></div>
+  </div>
+  <div class="controls-divider"></div>
+  <div class="filter-section">
+    <span class="filter-label" id="i18n-allergen">Allergénmentes</span>
+    <div class="filter-group" id="allergen-filters"></div>
+  </div>
+</div>
+
+<main id="app">
+  <div id="loading">Napi menü betöltése…</div>
+  <div id="error" style="display:none"></div>
+</main>
+
+<footer id="footer"></footer>
+<div class="unavail-toast" id="unavail-toast"></div>
+
+<script>
+  const I18N = {
+    hu: {
+      title:          'Napi menü',
+      loading:        'Napi menü betöltése…',
+      loadError:      'A menü nem töltható be — ',
+      searchPh:       'Fogás keresése…',
+      dietLabel:      'Diéta',
+      allergenFree:   'Allergénmentes',
+      allergenPrefix: 'Mentes: ',
+      updated:        'Frissítve: ',
+      collected:      'Adatgyűjtés: ',
+      website:        '↗ weboldal',
+      noResults:      'Nincs a szűrőknek megfelelő fogás.',
+      unavailFmt:     (name, reason) => `${name}: adat nem elérhető (${reason})`,
+      unavailReasons: { 'Facebook only': 'csak Facebook', 'Weekly PDF only': 'csak heti PDF' },
+      allergens: {
+        gluten: 'Glutén', crustaceans: 'Rákfélék', eggs: 'Tojás', fish: 'Hal',
+        peanuts: 'Földimogyoró', soybeans: 'Szója', milk: 'Tej', nuts: 'Diófélék',
+        celery: 'Zeller', mustard: 'Mustár', sesame: 'Szezám', sulphites: 'Szulfitok',
+        lupin: 'Csillagfürt', molluscs: 'Puhatestűek'
+      },
+      diets: {
+        vegetarian: '🌿 Vegetáriánus', vegan: '🌱 Vegán',
+        glutenFree: '🌾 Gluténmentes', dairyFree: '🥛 Tejtermék-mentes',
+        meatContaining: '🥩 Húsos', fishContaining: '🐟 Halas'
+      },
+    },
+    en: {
+      title:          'Daily menu',
+      loading:        'Loading today\'s menu…',
+      loadError:      'Could not load menu — ',
+      searchPh:       'Search dishes…',
+      dietLabel:      'Diet',
+      allergenFree:   'Allergen-free',
+      allergenPrefix: 'No ',
+      updated:        'Updated ',
+      collected:      'Data collected: ',
+      website:        '↗ website',
+      noResults:      'No dishes match your filters.',
+      unavailFmt:     (name, reason) => `${name}: couldn't fetch data (${reason})`,
+      unavailReasons: { 'Facebook only': 'Facebook only', 'Weekly PDF only': 'Weekly PDF only' },
+      allergens: {
+        gluten: 'Gluten', crustaceans: 'Crustaceans', eggs: 'Eggs', fish: 'Fish',
+        peanuts: 'Peanuts', soybeans: 'Soy', milk: 'Milk', nuts: 'Nuts',
+        celery: 'Celery', mustard: 'Mustard', sesame: 'Sesame', sulphites: 'Sulphites',
+        lupin: 'Lupin', molluscs: 'Molluscs'
+      },
+      diets: {
+        vegetarian: '🌿 Vegetarian', vegan: '🌱 Vegan',
+        glutenFree: '🌾 Gluten-free', dairyFree: '🥛 Dairy-free',
+        meatContaining: '🥩 Meat', fishContaining: '🐟 Fish'
+      },
+    },
+  };
+
+  // All known restaurants — parseable ones are filled from menu.json at runtime
+  const KNOWN_UNAVAILABLE = [
+    { name: 'Cube by Finchi',    url: 'https://www.finchi.hu/',                               reason: 'Facebook only' },
+    { name: 'Infood étterem',    url: 'https://www.facebook.com/infoodbudapest',               reason: 'Facebook only' },
+    { name: 'South Café',        url: 'https://www.facebook.com/SouthCafeGraphisoft',          reason: 'Facebook only' },
+    { name: 'The Planteen',      url: 'https://www.planteen.hu/hu',                            reason: 'Weekly PDF only' },
+  ];
+
+  let lang = 'hu';
+  let allItems = [];
+  let lastData = null;
+  let activeFilters = { diet: new Set(), restaurant: new Set(), allergenFree: new Set() };
+
+  function t() { return I18N[lang]; }
+
+  function applyI18n() {
+    const ui = t();
+    document.getElementById('i18n-title').textContent = ui.title;
+    document.getElementById('search').placeholder = ui.searchPh;
+    document.getElementById('i18n-diet').textContent = ui.dietLabel;
+    document.getElementById('i18n-allergen').textContent = ui.allergenFree;
+    const loadEl = document.getElementById('loading');
+    if (loadEl) loadEl.textContent = ui.loading;
+
+    // Re-label allergen-free chips (prefix changes between HU/EN)
+    document.querySelectorAll('#allergen-filters .chip').forEach(chip => {
+      chip.textContent = ui.allergenPrefix + ui.allergens[chip.dataset.filter];
+    });
+    // Re-label diet chips
+    document.querySelectorAll('#diet-filters .chip').forEach(chip => {
+      chip.textContent = ui.diets[chip.dataset.filter] || chip.dataset.filter;
+    });
+
+    // Re-render header-meta and footer with translated labels
+    if (lastData) {
+      const generated = lastData.generated_at
+        ? new Date(lastData.generated_at).toLocaleString(lang === 'hu' ? 'hu-HU' : 'en-GB',
+            { dateStyle: 'medium', timeStyle: 'short' })
+        : null;
+      const dates = [...new Set(allItems.map(i => i.date).filter(Boolean))].join(' · ');
+      document.getElementById('header-meta').textContent =
+        [dates, generated ? ui.updated + generated : ''].filter(Boolean).join(' · ');
+      document.getElementById('footer').textContent = generated ? ui.collected + generated : '';
+    }
+
+    // Re-render unavailable pill toast reasons (stored in data-reason)
+    document.querySelectorAll('.rest-pill.unavailable').forEach(pill => {
+      const rawReason = pill.dataset.rawReason;
+      if (rawReason) pill.dataset.reason = ui.unavailReasons[rawReason] || rawReason;
+    });
+
+    // Re-render website links inside restaurant headers
+    document.querySelectorAll('.restaurant-header a').forEach(a => {
+      if (a.getAttribute('data-i18n') === 'website') a.textContent = ui.website;
+    });
+  }
+
+  function setLang(l) {
+    lang = l;
+    document.getElementById('lang-hu').classList.toggle('active', l === 'hu');
+    document.getElementById('lang-en').classList.toggle('active', l === 'en');
+    applyI18n();
+    renderItems();
+  }
+
+  async function loadMenu() {
+    document.getElementById('loading').textContent = t().loading;
+    try {
+      const res = await fetch('daily-menu.json?nocache=' + Date.now());
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      lastData = data;
+      allItems = data.items || [];
+      renderAll(data);
+    } catch (e) {
+      document.getElementById('loading').style.display = 'none';
+      const err = document.getElementById('error');
+      err.style.display = 'block';
+      err.textContent = t().loadError + e.message;
+    }
+  }
+
+  function renderAll(data) {
+    document.getElementById('loading').style.display = 'none';
+    const ui = t();
+
+    // Header meta
+    const dates = [...new Set(allItems.map(i => i.date).filter(Boolean))].join(' · ');
+    const generated = data.generated_at
+      ? new Date(data.generated_at).toLocaleString(lang === 'hu' ? 'hu-HU' : 'en-GB',
+          { dateStyle: 'medium', timeStyle: 'short' })
+      : null;
+    document.getElementById('header-meta').textContent =
+      [dates, generated ? ui.updated + generated : ''].filter(Boolean).join(' · ');
+    document.getElementById('footer').textContent = generated ? ui.collected + generated : '';
+
+    // Restaurant pills
+    const availableRestaurants = [...new Map(allItems.map(i => [i.restaurant, i.url])).entries()];
+    const pillsContainer = document.getElementById('restaurant-pills');
+
+    const makePill = (name, url, available, rawReason) => {
+      const displayReason = available ? '' : (ui.unavailReasons[rawReason] || rawReason);
+      return `
+        <span class="rest-pill ${available ? 'available' : 'unavailable'}"
+              data-name="${esc(name)}" data-available="${available}"
+              data-reason="${esc(displayReason)}" data-raw-reason="${esc(rawReason || '')}">
+          <span class="pill-label"><span class="dot"></span>${esc(name)}</span>
+          <a class="pill-link" href="${esc(url)}" target="_blank" rel="noopener">↗</a>
+        </span>`;
+    };
+
+    pillsContainer.innerHTML = [
+      ...availableRestaurants.map(([name, url]) => makePill(name, url, true, '')),
+      ...KNOWN_UNAVAILABLE.map(r => makePill(r.name, r.url, false, r.reason))
+    ].join('');
+
+    let toastTimer;
+    pillsContainer.querySelectorAll('.rest-pill').forEach(pill => {
+      pill.addEventListener('click', e => {
+        if (e.target.closest('.pill-link')) return;
+        if (pill.dataset.available === 'true') {
+          const filter = pill.dataset.name;
+          const set = activeFilters.restaurant;
+          if (set.has(filter)) { set.delete(filter); pill.classList.remove('active'); }
+          else { set.add(filter); pill.classList.add('active'); }
+          renderItems();
+        } else {
+          const toast = document.getElementById('unavail-toast');
+          toast.textContent = t().unavailFmt(pill.dataset.name, pill.dataset.reason);
+          toast.classList.add('show');
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+      });
+    });
+
+    // Diet filter chips
+    const diets = new Set();
+    allItems.forEach(i => (i.diet_tags || '').split(',').map(s => s.trim()).filter(Boolean).forEach(d => diets.add(d)));
+    const dietContainer = document.getElementById('diet-filters');
+    dietContainer.innerHTML = '';
+    [...diets].sort().forEach(d => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.dataset.filter = d;
+      chip.dataset.group = 'diet';
+      chip.textContent = t().diets[d] || d;
+      chip.addEventListener('click', toggleFilter);
+      dietContainer.appendChild(chip);
+    });
+
+    // Allergen-free filter chips
+    const allergens = new Set();
+    allItems.forEach(i => (i.allergens || '').split(',').map(s => s.trim()).filter(Boolean).forEach(a => {
+      if (t().allergens[a]) allergens.add(a);
+    }));
+    const allergenContainer = document.getElementById('allergen-filters');
+    allergenContainer.innerHTML = '';
+    [...allergens].sort().forEach(a => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.dataset.filter = a;
+      chip.dataset.group = 'allergenFree';
+      chip.textContent = t().allergenPrefix + t().allergens[a];
+      chip.addEventListener('click', toggleFilter);
+      allergenContainer.appendChild(chip);
+    });
+
+    renderItems();
+  }
+
+  function toggleFilter(e) {
+    const { filter, group } = e.currentTarget.dataset;
+    const set = activeFilters[group];
+    if (set.has(filter)) { set.delete(filter); e.currentTarget.classList.remove('active'); }
+    else { set.add(filter); e.currentTarget.classList.add('active'); }
+    renderItems();
+  }
+
+  function renderItems() {
+    const ui = t();
+    const query = document.getElementById('search').value.toLowerCase().trim();
+    const app = document.getElementById('app');
+
+    let items = allItems.filter(item => {
+      if (query) {
+        const haystack = [item.title_hu, item.title_en, item.category].join(' ').toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      if (activeFilters.diet.size) {
+        const itemDiets = (item.diet_tags || '').split(',').map(s => s.trim()).filter(Boolean);
+        if (![...activeFilters.diet].some(d => itemDiets.includes(d))) return false;
+      }
+      if (activeFilters.allergenFree.size) {
+        const itemAllergens = (item.allergens || '').split(',').map(s => s.trim()).filter(Boolean);
+        if ([...activeFilters.allergenFree].some(a => itemAllergens.includes(a))) return false;
+      }
+      return true;
+    });
+
+    if (!items.length) {
+      app.innerHTML = `<div class="no-results">${esc(ui.noResults)}</div>`;
+      return;
+    }
+
+    const byRestaurant = {};
+    items.forEach(item => {
+      const r = item.restaurant || '?';
+      const c = item.category   || '?';
+      if (!byRestaurant[r]) byRestaurant[r] = { url: item.url, categories: {} };
+      if (!byRestaurant[r].categories[c]) byRestaurant[r].categories[c] = [];
+      byRestaurant[r].categories[c].push(item);
+    });
+
+    app.innerHTML = Object.entries(byRestaurant).map(([restaurant, { url, categories }]) => `
+      <section class="restaurant-section">
+        <div class="restaurant-header">
+          <h2>${esc(restaurant)}</h2>
+          ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener" data-i18n="website">${esc(ui.website)}</a>` : ''}
+        </div>
+        ${Object.entries(categories).map(([cat, catItems]) => `
+          <div class="category-label">${esc(cat)}</div>
+          <div class="menu-grid">${catItems.map(renderCard).join('')}</div>
+        `).join('')}
+      </section>
+    `).join('');
+  }
+
+  function renderCard(item) {
+    const ui = t();
+    const allergens = (item.allergens || '').split(',').map(s => s.trim()).filter(Boolean);
+    const diets = (item.diet_tags || '').split(',').map(s => s.trim()).filter(Boolean);
+    const price = item.price_huf ? `${item.price_huf.toLocaleString()} Ft` : null;
+    const primary   = lang === 'hu' ? (item.title_hu || item.title_en) : (item.title_en || item.title_hu);
+    const secondary = lang === 'hu' ? item.title_en : item.title_hu;
+    return `
+      <div class="menu-card">
+        <div class="title-primary">${esc(primary)}</div>
+        ${secondary ? `<div class="title-secondary">${esc(secondary)}</div>` : ''}
+        <div class="tags">
+          ${price ? `<span class="tag tag-price">${esc(price)}</span>` : ''}
+          ${diets.map(d => `<span class="tag tag-diet">${esc(ui.diets[d] || d)}</span>`).join('')}
+          ${allergens.map(a => `<span class="tag tag-allergen">${esc(ui.allergens[a] || a)}</span>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  function esc(str) {
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  document.getElementById('search').addEventListener('input', renderItems);
+  loadMenu();
+</script>
+</body>
+</html>
