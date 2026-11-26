@@ -303,7 +303,6 @@
       dietLabel:      'Diéta',
       allergenFree:   'Allergénmentes',
       allergenPrefix: 'Mentes: ',
-      updated:        'Frissítve: ',
       collected:      'Adatgyűjtés: ',
       website:        '↗ weboldal',
       noResults:      'Nincs a szűrőknek megfelelő fogás.',
@@ -329,7 +328,6 @@
       dietLabel:      'Diet',
       allergenFree:   'Allergen-free',
       allergenPrefix: 'No ',
-      updated:        'Updated ',
       collected:      'Data collected: ',
       website:        '↗ website',
       noResults:      'No dishes match your filters.',
@@ -382,16 +380,14 @@
       chip.textContent = ui.diets[chip.dataset.filter] || chip.dataset.filter;
     });
 
-    // Re-render header-meta and footer with translated labels
+    // Re-render header-meta on language switch
     if (lastData) {
       const generated = lastData.generated_at
         ? new Date(lastData.generated_at).toLocaleString(lang === 'hu' ? 'hu-HU' : 'en-GB',
-            { dateStyle: 'medium', timeStyle: 'short' })
+            { dateStyle: 'long', timeStyle: 'short' })
         : null;
-      const dates = [...new Set(allItems.map(i => i.date).filter(Boolean))].join(' · ');
       document.getElementById('header-meta').textContent =
-        [dates, generated ? ui.updated + generated : ''].filter(Boolean).join(' · ');
-      document.getElementById('footer').textContent = generated ? ui.collected + generated : '';
+        generated ? ui.collected + generated : '';
     }
 
     // Re-render unavailable pill toast reasons (stored in data-reason)
@@ -435,15 +431,14 @@
     document.getElementById('loading').style.display = 'none';
     const ui = t();
 
-    // Header meta
-    const dates = [...new Set(allItems.map(i => i.date).filter(Boolean))].join(' · ');
+    // Header meta: single data-collection timestamp from generated_at
     const generated = data.generated_at
       ? new Date(data.generated_at).toLocaleString(lang === 'hu' ? 'hu-HU' : 'en-GB',
-          { dateStyle: 'medium', timeStyle: 'short' })
+          { dateStyle: 'long', timeStyle: 'short' })
       : null;
     document.getElementById('header-meta').textContent =
-      [dates, generated ? ui.updated + generated : ''].filter(Boolean).join(' · ');
-    document.getElementById('footer').textContent = generated ? ui.collected + generated : '';
+      generated ? ui.collected + generated : '';
+    document.getElementById('footer').textContent = '';
 
     // Restaurant pills
     const availableRestaurants = [...new Map(allItems.map(i => [i.restaurant, i.url])).entries()];
